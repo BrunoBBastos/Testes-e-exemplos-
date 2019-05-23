@@ -2,8 +2,9 @@
 // Enviar os dados computados ao sistema
 
 #include <Arduino.h>
-#include <QueueList.h>
+#include <QueueList.h> // Fila <<< SUBSTITUIR PELA STD QUEUE
 #include <Ticker.h> // Timer
+#include <SaIoTDeviceLib.h> // Saiot
 
 #define PUSH_INTERVAL 2 // Intervalo entre pacotes de pulsos
 #define SEND_INTERVAL 4 // Intervalo entre envios
@@ -17,7 +18,7 @@ struct data // Conjunto de informações a serem enviadas
 
 volatile int pulseCounter = 0; // Contador de pulsos do sensor
 
-unsigned long debounceDelay = 50; // Intervalo entre leituras válidas de cada pulsos
+unsigned long debounceDelay = 500; // Intervalo entre leituras válidas de cada pulsos
 
 bool wifiSt = false; // Estado da conexão WIFI(teste)
 bool ready = false;  // Indica se há dados a serem enviados
@@ -26,6 +27,12 @@ QueueList<data> dataQ; // Lista FIFO
 
 Ticker PushData;
 Ticker SendQ;
+
+WiFiClient espClient;
+SaIoTDeviceLib hidrometro("Hidrometro","230519Tst","ricardodev@email.com");
+SaIoTSensor medidorAgua("hd01","hidrometro_01","Litros","number");
+String senha = "12345678910";
+void callback(char* topic, byte* payload, unsigned int length);
 
 void pulseRead()
 {                                        // Leitura de pulsos do sensor
@@ -74,6 +81,10 @@ void setup()
 {
   pinMode(SENSOR_PIN, INPUT_PULLUP); // Configura porta do sensor
 
+  hidrometro.addSensor(medidorAgua);
+  hidrometro.preSetCom(espClient, callback);    // Função padrão obrigatória (?)
+  hidrometro.start(senha);  
+
   Serial.begin(115200); // (Teste)
   Serial.println();
   Serial.println("Comecou");
@@ -92,4 +103,8 @@ void loop()
     if (c == 'w')
       wifiSt = !wifiSt;
   }
+
+  sendData2Saiot();
+  barril.handleLoop();
+
 }
